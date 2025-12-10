@@ -17,7 +17,8 @@ export function useSpeechSynthesis(options: SpeechOptions = {}) {
     if (!synth) return null;
     const list = synth.getVoices();
     if (options.voiceHintLang) {
-      const match = list.find((v) => v.lang?.toLowerCase().startsWith(options.voiceHintLang));
+      const langPrefix = options.voiceHintLang.toLowerCase();
+      const match = list.find((v) => v.lang?.toLowerCase().startsWith(langPrefix));
       if (match) return match;
     }
     return list[0] ?? null;
