@@ -1,22 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
-import { characters } from "./data/characters";
 import { useSpeechSynthesis } from "./hooks/useSpeechSynthesis";
 import { useRecorder } from "./hooks/useRecorder";
-import { CharacterEntry } from "./types";
-import { pickRandomCharacter } from "./utils/random";
+import { useCharacterHistory } from "./hooks/useCharacterHistory";
+import { useAudioPlayback } from "./hooks/useAudioPlayback";
+import { Header } from "./components/Header";
+import { CharacterCard } from "./components/CharacterCard";
+import { ControlButtons } from "./components/ControlButtons";
+import { NavigationButtons } from "./components/NavigationButtons";
+import { StatusMessage } from "./components/StatusMessage";
 
 function App() {
-  const [history, setHistory] = useState<CharacterEntry[]>(() => [pickRandomCharacter()]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const { current, canGoBack, next, previous } = useCharacterHistory();
+  const { play, stop, supported: ttsSupported } = useSpeechSynthesis({ voiceHintLang: "zh" });
+  const {
+    start,
+    stop: stopRecording,
+    isRecording,
+    recordingUrl,
+    error: recordError,
+    supported: recorderSupported,
+    clearRecording,
+  } = useRecorder();
+  const { playBlob } = useAudioPlayback();
+
   const [isPlayingRef, setIsPlayingRef] = useState(false);
   const [isPlayingUser, setIsPlayingUser] = useState(false);
   const [isPlayingBoth, setIsPlayingBoth] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const current = history[historyIndex];
-
-  const { play, stop, supported: ttsSupported } = useSpeechSynthesis({ voiceHintLang: "zh" });
-  const { start, stop: stopRecording, isRecording, recordingUrl, error: recordError, supported: recorderSupported, clearRecording } =
-    useRecorder();
 
   useEffect(() => {
     if (recordError) setError(recordError);
@@ -52,13 +62,11 @@ function App() {
   };
 
   const handlePlayUserRecording = async () => {
-    if (!recordingUrl) return;
-    if (controlsLocked) return;
+    if (!recordingUrl || controlsLocked) return;
     setError(null);
     try {
       setIsPlayingUser(true);
-      const audio = new Audio(recordingUrl);
-      await audio.play();
+      await playBlob(recordingUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not play your recording.");
     } finally {
@@ -66,34 +74,8 @@ function App() {
     }
   };
 
-  const handleNextCharacter = () => {
-    if (controlsLocked) return;
-    stop();
-    clearRecording();
-    setError(null);
-    setHistory((prev) => {
-      const base = prev.slice(0, historyIndex + 1);
-      return [...base, pickRandomCharacter()];
-    });
-    setHistoryIndex((prev) => prev + 1);
-  };
-
-  const handlePreviousCharacter = () => {
-    if (controlsLocked) return;
-    if (historyIndex === 0) return;
-    stop();
-    clearRecording();
-    setError(null);
-    setHistoryIndex((prev) => Math.max(0, prev - 1));
-  };
-
   const handlePlayBoth = async () => {
-    if (!recordingUrl) return;
-    if (!ttsSupported) {
-      setError("Speech synthesis not supported in this browser.");
-      return;
-    }
-    if (controlsLocked || isPlayingUser) return;
+    if (!recordingUrl || !ttsSupported || controlsLocked || isPlayingUser) return;
     setError(null);
     setIsPlayingBoth(true);
     try {
@@ -101,8 +83,7 @@ function App() {
       await play(current.ttsText ?? current.hanzi);
       setIsPlayingRef(false);
       setIsPlayingUser(true);
-      const audio = new Audio(recordingUrl);
-      await audio.play();
+      await playBlob(recordingUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not play reference and recording.");
     } finally {
@@ -112,64 +93,53 @@ function App() {
     }
   };
 
+  const handleNext = () => {
+    if (controlsLocked) return;
+    stop();
+    clearRecording();
+    setError(null);
+    next();
+  };
+
+  const handlePrevious = () => {
+    if (controlsLocked) return;
+    stop();
+    clearRecording();
+    setError(null);
+    previous();
+  };
+
   return (
     <div className="app">
-      <div className="header">
-        <div>
-          <h1 className="title">Mandarin Pronunciation Drill</h1>
-          <p className="subtitle">Hear, record, replay. Fast practice for common characters.</p>
-        </div>
-        {!recorderSupported && <span className="pill">Recording unsupported</span>}
-      </div>
-
-      <div className="card">
-        <p className="hanzi">{current.hanzi}</p>
-        <p className="pinyin">{current.pinyin}</p>
-        <p className="gloss">{current.gloss}</p>
-      </div>
-
+      <Header recorderSupported={recorderSupported} />
+      <CharacterCard character={current} />
       <div className="controls">
-        <div className="controls-row">
-          <button className="btn primary" onClick={handlePlayReference} disabled={controlsLocked}>
-            {isPlayingRef ? "Playing..." : "Play reference"}
-          </button>
-          <button className="btn secondary" onClick={handleRecordToggle} disabled={!recorderSupported || controlsLocked}>
-            {isRecording ? "Stop recording" : "Record"}
-          </button>
-          <button className="btn" onClick={handlePlayUserRecording} disabled={!hasRecording || isPlayingUser || controlsLocked}>
-            {isPlayingUser ? "Playing..." : "Play my voice"}
-          </button>
-          <button className="btn" onClick={handlePlayBoth} disabled={!hasRecording || controlsLocked || isPlayingUser}>
-            Play both
-          </button>
-        </div>
-        <div className="controls-row">
-          <button className="btn" onClick={handlePreviousCharacter} disabled={historyIndex === 0 || controlsLocked}>
-            Previous character
-          </button>
-          <button className="btn" onClick={handleNextCharacter} disabled={controlsLocked}>
-            Next character
-          </button>
-        </div>
+        <ControlButtons
+          isPlayingRef={isPlayingRef}
+          isRecording={isRecording}
+          isPlayingUser={isPlayingUser}
+          hasRecording={hasRecording}
+          recorderSupported={recorderSupported}
+          controlsLocked={controlsLocked}
+          onPlayReference={handlePlayReference}
+          onRecordToggle={handleRecordToggle}
+          onPlayUserRecording={handlePlayUserRecording}
+          onPlayBoth={handlePlayBoth}
+        />
+        <NavigationButtons
+          canGoBack={canGoBack}
+          controlsLocked={controlsLocked}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+        />
       </div>
-
-      {!recorderSupported && (
-        <div className="status error">
-          Recording not available in this browser. You can still hear reference audio and move between characters.
-        </div>
-      )}
-
-      {isRecording && <div className="status">Recording... tap Stop to finish.</div>}
-
-      {error && (
-        <div className="status error">
-          {error}
-          <div className="inline-note">If mic is blocked, allow permission and try again.</div>
-        </div>
-      )}
+      <StatusMessage
+        isRecording={isRecording}
+        recorderSupported={recorderSupported}
+        error={error}
+      />
     </div>
   );
 }
 
 export default App;
-

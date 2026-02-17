@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SpeechOptions {
   voiceHintLang?: string;
@@ -7,22 +7,27 @@ interface SpeechOptions {
 export function useSpeechSynthesis(options: SpeechOptions = {}) {
   const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
   const playingRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
-  const voices = useMemo(() => {
-    if (!synth) return [];
-    return synth.getVoices();
-  }, [synth, options.voiceHintLang]);
+  useEffect(() => {
+    if (!synth) return;
+
+    const updateVoices = () => setVoices(synth.getVoices());
+
+    updateVoices();
+    synth.addEventListener("voiceschanged", updateVoices);
+    return () => synth.removeEventListener("voiceschanged", updateVoices);
+  }, [synth]);
 
   const pickVoice = useCallback(() => {
-    if (!synth) return null;
-    const list = synth.getVoices();
+    if (!voices.length) return null;
     if (options.voiceHintLang) {
       const langPrefix = options.voiceHintLang.toLowerCase();
-      const match = list.find((v) => v.lang?.toLowerCase().startsWith(langPrefix));
+      const match = voices.find((v) => v.lang?.toLowerCase().startsWith(langPrefix));
       if (match) return match;
     }
-    return list[0] ?? null;
-  }, [options.voiceHintLang, synth]);
+    return voices[0] ?? null;
+  }, [options.voiceHintLang, voices]);
 
   const play = useCallback(
     async (text: string) => {
@@ -66,4 +71,3 @@ export function useSpeechSynthesis(options: SpeechOptions = {}) {
     stop,
   };
 }
-
