@@ -83,9 +83,9 @@ App (router shell)
     ├── SyllableSelector (dropdown + Random)
     └── ToneCard × 4 (2×2 grid)
         ├── Tone indicator + hanzi + pinyin + gloss
-        ├── Play reference / Record / Assess buttons
+        ├── Play (ref) / Rec / Mine (play user recording) / Score buttons
         ├── Pronunciation score (Azure)
-        └── Tone score + contour visualization (pitch analysis)
+        └── Tone score (client-side pitch analysis)
 ```
 
 ## Modules
@@ -98,18 +98,18 @@ App (router shell)
 - `src/hooks/useAzureTts.ts` — fetches audio from `/api/tts`, plays via `Audio` element. Interface: `{ play(text), stop(), supported }`.
 - `src/hooks/useRecorder.ts` — mic permission, `MediaRecorder`, blob URL creation. Produces `audio/webm` blobs.
 - `src/hooks/useAudioPlayback.ts` — plays blob URLs via `Audio` element.
-- `src/hooks/useCharacterHistory.ts` — character navigation with back/forward history.
+- `src/hooks/useCharacterHistory.ts` — character navigation with back/forward history. Accepts `CharacterFilter` (`"all" | "character" | "word"`); resets history when filter changes. Uses `getPool()` helper to derive the active character pool from `characters.ts`.
 - `src/hooks/usePronunciationAssessment.ts` — converts WebM→WAV, calls `/api/assess`, parses `AssessmentScore`.
 - `src/hooks/useToneScoring.ts` — extracts F0 pitch contour, compares against expected tone shape, returns `ToneScore`.
 - `src/hooks/useSpeechSynthesis.ts` — (legacy, kept as offline fallback reference) browser `speechSynthesis` wrapper.
 
 ### Utilities
-- `src/utils/random.ts` — random-with-replacement character picker.
+- `src/utils/random.ts` — random-with-replacement character picker. `pickRandomCharacter(pool?)` accepts an optional pool; falls back to the full `characters` array.
 - `src/utils/audioConvert.ts` — converts WebM blob to 16kHz 16-bit mono PCM WAV using `AudioContext.decodeAudioData`. No external dependencies.
 - `src/utils/pitchAnalysis.ts` — F0 extraction (autocorrelation via `AnalyserNode`), expected tone contours, DTW/cosine similarity comparison. Speaker-normalized (relative pitch).
 
 ### Data
-- `src/data/characters.ts` — ~100 entries: `{ hanzi, pinyin, gloss, ttsText?, category? }`.
+- `src/data/characters.ts` — ~108 entries: `{ hanzi, pinyin, gloss, ttsText?, category? }`. All entries tagged with `category: "character"` (single char) or `category: "word"` (multi-char).
 - `src/data/tones.ts` — ~15-20 syllables, each with 4 tonal variants: `{ tone: 1-4, pinyin, hanzi, gloss, ttsText }`.
 
 ### Serverless API
@@ -205,7 +205,7 @@ Set in Vercel dashboard (never committed):
 - `AZURE_SPEECH_KEY` — Azure Cognitive Services subscription key
 - `AZURE_SPEECH_REGION` — e.g. `eastus`
 
-Local development: use `vercel dev` or Vite proxy to forward `/api` requests.
+Local development: create `.env.local` in project root with both vars, then run `vercel dev` (not `npm run dev`). The Vite dev server proxies `/api` → `localhost:3000` (vercel dev port) via `vite.config.ts`. Without credentials, Play reference and Score buttons will fail with a 500 error.
 
 ## Future Work
 

@@ -5,10 +5,12 @@ interface ControlButtonsProps {
   hasRecording: boolean;
   recorderSupported: boolean;
   controlsLocked: boolean;
+  isAssessing?: boolean;
   onPlayReference: () => void;
   onRecordToggle: () => void;
   onPlayUserRecording: () => void;
   onPlayBoth: () => void;
+  onAssess?: () => void;
 }
 
 export function ControlButtons({
@@ -18,10 +20,12 @@ export function ControlButtons({
   hasRecording,
   recorderSupported,
   controlsLocked,
+  isAssessing,
   onPlayReference,
   onRecordToggle,
   onPlayUserRecording,
   onPlayBoth,
+  onAssess,
 }: ControlButtonsProps) {
   return (
     <div className="controls-row">
@@ -57,6 +61,16 @@ export function ControlButtons({
       >
         Play both
       </button>
+      {onAssess && (
+        <button
+          className="btn primary"
+          onClick={onAssess}
+          disabled={!hasRecording || controlsLocked || !!isAssessing}
+          aria-label="Assess pronunciation"
+        >
+          {isAssessing ? "Assessing..." : "Assess"}
+        </button>
+      )}
     </div>
   );
 }
