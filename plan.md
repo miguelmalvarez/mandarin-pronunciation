@@ -88,7 +88,118 @@ The app is a Mandarin pronunciation drill SPA (React + Vite + TypeScript). It wa
 
 ---
 
-## Verification Checklist (all passing)
+## Phase 6: Azure Serverless API Proxies
+
+- [ ] **Create `/api/tts.ts`** — Vercel serverless function proxying Azure Neural TTS
+  - `POST /api/tts` with `{ text, voice? }`, returns `audio/mpeg`
+  - Default voice: `zh-CN-XiaoxiaoNeural`
+  - 24h cache header for repeated requests
+- [ ] **Create `/api/assess.ts`** — Vercel serverless function proxying Azure Pronunciation Assessment
+  - `POST /api/assess?text=你好&lang=zh-CN` with raw WAV body
+  - Returns Azure JSON (accuracy, fluency, completeness, pronScore, per-word, per-phoneme)
+  - Disable body parsing for raw audio handling
+- [ ] **Configure environment variables** in Vercel: `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`
+- [ ] **Update `vercel.json`** — add SPA rewrites, functions config
+
+---
+
+## Phase 7: Audio Format Conversion
+
+- [ ] **Create `src/utils/audioConvert.ts`** — client-side WebM → WAV conversion
+  - Uses `AudioContext({ sampleRate: 16000 })` + `decodeAudioData`
+  - Encodes 16-bit PCM WAV with RIFF header
+  - No external dependencies (Web Audio API only)
+- [ ] **Tests** for WAV encoder (synthetic data, header verification)
+
+---
+
+## Phase 8: Azure Neural TTS Integration
+
+- [ ] **Create `src/hooks/useAzureTts.ts`** — replaces browser `speechSynthesis`
+  - Same interface: `{ play(text), stop(), supported }`
+  - Fetches from `/api/tts`, plays blob via `Audio` element
+  - AbortController for in-flight request cancellation
+- [ ] **Update `App.tsx`** — swap `useSpeechSynthesis` → `useAzureTts`
+- [ ] **Add Vite dev proxy** — `/api` → Vercel dev server
+- [ ] **Tests** for the new hook (mocked fetch + Audio)
+
+---
+
+## Phase 9: Pronunciation Scoring
+
+- [ ] **Create `src/hooks/usePronunciationAssessment.ts`**
+  - Converts WebM recording to WAV, sends to `/api/assess`
+  - Parses Azure response into typed `AssessmentScore` (pronScore, accuracy, fluency, completeness, per-word/phoneme)
+- [ ] **Create `src/components/ScoreDisplay.tsx`**
+  - Large color-coded overall score (green ≥80, yellow ≥60, red <60)
+  - Accuracy/fluency/completeness breakdown
+  - Per-word phoneme detail
+- [ ] **Update `ControlButtons.tsx`** — add "Assess" button
+- [ ] **Wire scoring into main practice page**
+- [ ] **Tests** for assessment hook and score display
+
+---
+
+## Phase 10: React Router + Tone Practice Page
+
+- [ ] **Add `react-router-dom` v6**
+- [ ] **Extract `src/pages/PracticePage.tsx`** from current `App.tsx` logic
+- [ ] **Create `src/components/NavBar.tsx`** — links to Word Practice and Tone Practice
+- [ ] **Create `src/data/tones.ts`** — tone practice dataset
+  - ~15-20 syllables (ma, ba, da, shi, etc.), each with 4 tonal variants
+  - `ToneSyllable { base, variants: [ToneVariant × 4] }`
+  - `ToneVariant { tone: 1-4, pinyin, hanzi, gloss, ttsText }`
+- [ ] **Create `src/pages/TonePracticePage.tsx`**
+  - Syllable selector (dropdown + Random)
+  - 2×2 grid of `ToneCard` components
+  - Single shared `useRecorder` instance (one mic stream)
+  - Azure TTS + pronunciation assessment per card
+- [ ] **Create `src/components/ToneCard.tsx`** — tone variant display + controls
+- [ ] **Create `src/components/SyllableSelector.tsx`** — syllable picker
+- [ ] **Update `src/main.tsx`** — wrap in `BrowserRouter`
+- [ ] **Update `src/App.tsx`** — thin router shell with `<Routes>`
+- [ ] **Update `src/styles/global.css`** — navbar, tone grid, tone-card accent colors
+- [ ] **Tests** for all new components and pages
+
+---
+
+## Phase 11: Client-Side Pitch Analysis (Tone Scoring)
+
+- [ ] **Create `src/utils/pitchAnalysis.ts`**
+  - `extractPitchContour(blobUrl)` — F0 extraction via Web Audio API + autocorrelation
+  - `getExpectedContour(tone: 1-4)` — normalized reference contours (flat, rising, dipping, falling)
+  - `compareToneContours(actual, expected)` — DTW or cosine similarity, returns 0-100
+  - Speaker-normalized (relative pitch, not absolute frequency)
+- [ ] **Create `src/hooks/useToneScoring.ts`**
+  - Returns `{ toneScore, detectedContour, expectedContour }`
+  - Enables visual pitch contour overlay on ToneCard
+- [ ] **Update `TonePracticePage.tsx`** — wire tone scoring alongside Azure assessment
+- [ ] **Update `ToneCard.tsx`** — display dual scores (Pronunciation + Tone)
+- [ ] **Tests** with synthetic contour data
+
+Note: Azure Pronunciation Assessment does NOT support prosody/tone scoring for zh-CN (only en-US). This client-side pitch analysis fills that gap specifically for the tone practice section.
+
+---
+
+## Phase 12: Word-Based Practice
+
+- [ ] **Update `src/types.ts`** — add optional `category?: "character" | "word"` to `CharacterEntry`
+- [ ] **Update `src/data/characters.ts`** — tag existing entries, add more 2-3 character words
+- [ ] **Update `PracticePage.tsx`** — add filter toggle (All / Characters / Words)
+
+---
+
+## Future Work
+
+- **Progress tracking** — persist scores over time (localStorage or backend), track mastery per character/tone
+- **Spaced repetition** — prioritize weak characters/tones based on score history
+- **Offline / PWA** — cache TTS audio, service worker for offline practice
+- **Browser TTS fallback** — fall back to `speechSynthesis` when Azure is unavailable
+- **Sentence-level practice** — longer utterances, tone sandhi across word boundaries
+
+---
+
+## Verification Checklist (Phases 1-5)
 
 - [x] `npm run lint` — no errors
 - [x] `npm run test` — 27 tests pass
@@ -96,34 +207,45 @@ The app is a Mandarin pronunciation drill SPA (React + Vite + TypeScript). It wa
 
 ---
 
-## File Structure
+## File Structure (Current + Planned)
 
 ```
+├── api/                                  (NEW — Vercel serverless)
+│   ├── tts.ts                            Azure TTS proxy
+│   └── assess.ts                         Azure Pronunciation Assessment proxy
 src/
-├── main.tsx
-├── App.tsx                           (thin orchestrator)
-├── App.test.tsx
-├── types.ts
-├── data/characters.ts
-├── styles/global.css
+├── main.tsx                              (modify: add BrowserRouter)
+├── App.tsx                               (modify: router shell)
+├── App.test.tsx                          (modify: MemoryRouter, updated mocks)
+├── types.ts                              (modify: add category field)
+├── data/
+│   ├── characters.ts                     (modify: add category tags, more words)
+│   └── tones.ts                          (NEW — tone syllable dataset)
+├── styles/global.css                     (modify: navbar, tone grid, scores)
 ├── test/setup.ts
+├── pages/                                (NEW directory)
+│   ├── PracticePage.tsx                  Extracted from App.tsx
+│   └── TonePracticePage.tsx              Tone practice page
 ├── components/
 │   ├── CharacterCard.tsx
-│   ├── CharacterCard.test.tsx
-│   ├── ControlButtons.tsx
-│   ├── ControlButtons.test.tsx
+│   ├── ControlButtons.tsx                (modify: add Assess button)
 │   ├── NavigationButtons.tsx
-│   ├── NavigationButtons.test.tsx
 │   ├── StatusMessage.tsx
-│   └── Header.tsx
+│   ├── Header.tsx
+│   ├── NavBar.tsx                        (NEW)
+│   ├── ScoreDisplay.tsx                  (NEW)
+│   ├── ToneCard.tsx                      (NEW)
+│   └── SyllableSelector.tsx              (NEW)
 ├── hooks/
 │   ├── useRecorder.ts
-│   ├── useSpeechSynthesis.ts
+│   ├── useSpeechSynthesis.ts             (kept as fallback reference)
+│   ├── useAzureTts.ts                    (NEW — Azure TTS)
+│   ├── usePronunciationAssessment.ts     (NEW — scoring)
+│   ├── useToneScoring.ts                 (NEW — pitch analysis)
 │   ├── useCharacterHistory.ts
-│   ├── useCharacterHistory.test.ts
-│   ├── useAudioPlayback.ts
-│   └── useAudioPlayback.test.ts
+│   └── useAudioPlayback.ts
 └── utils/
     ├── random.ts
-    └── random.test.ts
+    ├── audioConvert.ts                   (NEW — WebM→WAV)
+    └── pitchAnalysis.ts                  (NEW — F0 extraction)
 ```
