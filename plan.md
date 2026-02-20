@@ -121,9 +121,10 @@ The app is a Mandarin pronunciation drill SPA (React + Vite + TypeScript). It wa
   - Same interface: `{ play(text), stop(), supported }`
   - Fetches from `/api/tts`, plays blob via `Audio` element
   - AbortController for in-flight request cancellation
+  - **Browser `speechSynthesis` fallback** — automatically falls back to browser TTS on non-ok API response or network error (e.g. Azure credentials not configured); picks `zh` voice
 - [x] **Update `App.tsx`** — swap `useSpeechSynthesis` → `useAzureTts`
 - [x] **Add Vite dev proxy** — `/api` → Vercel dev server (`vite.config.ts`)
-- [x] **Tests** for the new hook (mocked fetch + Audio)
+- [x] **Tests** for the new hook (mocked fetch + Audio, fallback on non-ok, fallback on network error)
 
 ---
 
@@ -195,15 +196,14 @@ Note: Azure Pronunciation Assessment does NOT support prosody/tone scoring for z
 - **Progress tracking** — persist scores over time (localStorage or backend), track mastery per character/tone
 - **Spaced repetition** — prioritize weak characters/tones based on score history
 - **Offline / PWA** — cache TTS audio, service worker for offline practice
-- **Browser TTS fallback** — fall back to `speechSynthesis` when Azure is unavailable
 - **Sentence-level practice** — longer utterances, tone sandhi across word boundaries
 
 ---
 
-## Verification Checklist (Phases 1-5)
+## Verification Checklist (Phases 1-12)
 
 - [x] `npm run lint` — no errors
-- [x] `npm run test` — 27 tests pass
+- [x] `npm run test` — 55 tests pass
 - [x] `npm run build` — clean production build
 
 ---

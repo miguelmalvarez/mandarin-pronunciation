@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mandarin Pronunciation Drill — Plan & Architecture</title>
+  <style>
+    :root {
+      --bg: #fafaf9;
+      --surface: #ffffff;
+      --text: #1c1917;
+      --text-muted: #57534e;
+      --accent: #dc2626;
+      --accent-light: #fef2f2;
+      --border: #e7e5e4;
+      --green: #16a34a;
+      --green-bg: #f0fdf4;
+      --yellow: #ca8a04;
+      --yellow-bg: #fefce8;
+      --blue: #2563eb;
+      --blue-bg: #eff6ff;
+      --code-bg: #f5f5f4;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0 1rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 0 4rem;
+    }
+
+    header {
+      text-align: center;
+      padding: 3rem 0 2rem;
+      border-bottom: 2px solid var(--accent);
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    header h1 span { color: var(--accent); }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    .overview {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .overview h2 {
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .overview ul {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem 2rem;
+    }
+
+    .overview li {
+      position: relative;
+      padding-left: 1.25rem;
+      font-size: 0.95rem;
+    }
+
+    .overview li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    @media (max-width: 600px) {
+      .overview ul { grid-template-columns: 1fr; }
+    }
+
+    /* Phase cards */
+    .phase {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .phase-header:hover { background: var(--bg); }
+
+    .phase-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .phase.done .phase-number { background: var(--green-bg); color: var(--green); }
+    .phase.todo .phase-number { background: var(--blue-bg); color: var(--blue); }
+    .phase.future .phase-number { background: var(--yellow-bg); color: var(--yellow); }
+
+    .phase-title {
+      font-weight: 600;
+      font-size: 1.05rem;
+      flex: 1;
+    }
+
+    .phase-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+    }
+
+    .phase.done .phase-badge { background: var(--green-bg); color: var(--green); }
+    .phase.todo .phase-badge { background: var(--blue-bg); color: var(--blue); }
+    .phase.future .phase-badge { background: var(--yellow-bg); color: var(--yellow); }
+
+    .phase-toggle {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    .phase.open .phase-toggle { transform: rotate(90deg); }
+
+    .phase-body {
+      display: none;
+      padding: 0 1.25rem 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .phase.open .phase-body { display: block; }
+
+    .phase-body ul {
+      list-style: none;
+      margin-top: 0.75rem;
+    }
+
+    .phase-body li {
+      padding: 0.35rem 0 0.35rem 1.5rem;
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    .phase-body li::before {
+      position: absolute;
+      left: 0;
+      font-size: 0.9rem;
+    }
+
+    .phase-body li.done::before { content: '✓'; color: var(--green); font-weight: 700; }
+    .phase-body li.todo::before { content: '○'; color: var(--blue); }
+
+    .phase-body li .detail {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.1rem;
+    }
+
+    /* Architecture section */
+    .arch-section {
+      margin-top: 2.5rem;
+    }
+
+    .arch-section > h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .arch-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .arch-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+    }
+
+    .arch-card p, .arch-card li {
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .arch-card ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+
+    .arch-card li { margin-bottom: 0.3rem; }
+
+    code {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.85em;
+      background: var(--code-bg);
+      padding: 0.15rem 0.35rem;
+      border-radius: 4px;
+    }
+
+    pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin-top: 0.75rem;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    .keyword { color: #569cd6; }
+    .type { color: #4ec9b0; }
+    .string { color: #ce9178; }
+    .comment { color: #6a9955; }
+    .number { color: #b5cea8; }
+
+    /* Diagram */
+    .diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+
+    .diagram-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+
+    .diagram-row {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .diagram-box {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      text-align: center;
+      min-width: 140px;
+    }
+
+    .diagram-box.client { border-color: var(--blue); background: var(--blue-bg); }
+    .diagram-box.server { border-color: var(--green); background: var(--green-bg); }
+    .diagram-box.azure { border-color: var(--accent); background: var(--accent-light); }
+
+    .diagram-box strong { display: block; font-size: 0.8rem; }
+    .diagram-box small { color: var(--text-muted); font-size: 0.75rem; }
+
+    .diagram-arrow {
+      color: var(--text-muted);
+      font-size: 1.2rem;
+    }
+
+    /* File tree */
+    .file-tree {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+    }
+
+    .file-tree .dir { color: #569cd6; }
+    .file-tree .new { color: #4ec9b0; }
+    .file-tree .mod { color: #dcdcaa; }
+    .file-tree .note { color: #6a9955; }
+
+    /* Scoring section */
+    .scoring-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    @media (max-width: 600px) {
+      .scoring-grid { grid-template-columns: 1fr; }
+    }
+
+    .scoring-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .scoring-card h4 {
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .scoring-card p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Component tree */
+    .comp-tree {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.85rem;
+      line-height: 1.8;
+      background: var(--code-bg);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+    }
+
+    .comp-tree .component { color: var(--blue); font-weight: 600; }
+    .comp-tree .desc { color: var(--text-muted); }
+
+    /* Routing */
+    .route-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .route-table th, .route-table td {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .route-table th {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem 0;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <h1>Mandarin Pronunciation <span>Drill</span></h1>
+      <p>Improvement & Deployment Plan + Architecture</p>
+    </header>
+
+    <!-- Overview -->
+    <div class="overview">
+      <h2>Project Overview</h2>
+      <ul>
+        <li>React + Vite + TypeScript SPA</li>
+        <li>Vercel serverless backend</li>
+        <li>Azure Neural TTS for reference audio</li>
+        <li>MediaRecorder for user recordings</li>
+        <li>Azure Pronunciation Assessment scoring</li>
+        <li>Client-side pitch analysis for tones</li>
+        <li>Two pages: Word Practice & Tone Practice</li>
+        <li>~100 word entries + ~80 tone variants</li>
+      </ul>
+    </div>
+
+    <!-- Phases -->
+    <h2 style="font-size:1.4rem; font-weight:700; margin-bottom:1rem; padding-bottom:0.5rem; border-bottom:2px solid var(--accent);">Implementation Phases</h2>
+
+    <!-- Phase 1 -->
+    <div class="phase done open">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">1</span>
+        <span class="phase-title">Project Infrastructure</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">ESLint v9 + Prettier <span class="detail">Flat config format, eslint-config-prettier integration</span></li>
+          <li class="done">Vitest + Testing Library <span class="detail">jsdom environment, globals, jest-dom matchers</span></li>
+          <li class="done">Remove <code>node_modules/</code> from git tracking</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 2 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">2</span>
+        <span class="phase-title">Component Refactor</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Extract <code>CharacterCard</code> component</li>
+          <li class="done">Extract <code>ControlButtons</code> component</li>
+          <li class="done">Extract <code>NavigationButtons</code> component</li>
+          <li class="done">Extract <code>StatusMessage</code> component</li>
+          <li class="done">Extract <code>Header</code> component</li>
+          <li class="done">Create <code>useCharacterHistory</code> hook</li>
+          <li class="done">Create <code>useAudioPlayback</code> hook</li>
+          <li class="done">Slim down <code>App.tsx</code> to thin orchestrator</li>
+          <li class="done">Move CSS to <code>src/styles/global.css</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 3 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">3</span>
+        <span class="phase-title">Bug Fixes & UI Polish</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Fix voice loading bug in <code>useSpeechSynthesis</code> <span class="detail">Added voiceschanged event listener for Chrome</span></li>
+          <li class="done">Improve recorder cleanup <span class="detail">Proper track cleanup, safe state check, better error messages</span></li>
+          <li class="done">Recording button pulse animation</li>
+          <li class="done">Mobile responsiveness (600px / 380px breakpoints)</li>
+          <li class="done">Accessibility: aria-labels, roles, focus-visible outlines</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 4 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">4</span>
+        <span class="phase-title">Tests</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <p style="margin-bottom:0.5rem; color:var(--text-muted); font-size:0.9rem;">27 tests across 7 files, all passing:</p>
+        <ul>
+          <li class="done"><code>random.test.ts</code> — valid characters, variety</li>
+          <li class="done"><code>useCharacterHistory.test.ts</code> — init, next, prev, boundary</li>
+          <li class="done"><code>useAudioPlayback.test.ts</code> — play/resolve/reject</li>
+          <li class="done"><code>CharacterCard.test.tsx</code> — renders hanzi/pinyin/gloss</li>
+          <li class="done"><code>ControlButtons.test.tsx</code> — states, disabled logic</li>
+          <li class="done"><code>NavigationButtons.test.tsx</code> — enabled/disabled, clicks</li>
+          <li class="done"><code>App.test.tsx</code> — full app render, navigation</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 5 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">5</span>
+        <span class="phase-title">Vercel Deployment</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Created <code>vercel.json</code> with Vite framework config</li>
+          <li class="done">Build verified — <code>npm run build</code> succeeds</li>
+          <li class="done">Pushed to GitHub</li>
+          <li class="todo">Connect to Vercel dashboard and deploy</li>
+          <li class="todo">Post-deploy: verify desktop + mobile, audio, mic, navigation</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 6 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">6</span>
+        <span class="phase-title">Azure Serverless API Proxies</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Create <code>/api/tts.ts</code> <span class="detail">POST proxy → Azure Neural TTS, returns audio/mpeg, 24h cache</span></li>
+          <li class="done">Create <code>/api/assess.ts</code> <span class="detail">POST proxy → Azure Pronunciation Assessment, raw WAV body, returns JSON scores</span></li>
+          <li class="todo">Configure env vars in Vercel <span class="detail">AZURE_SPEECH_KEY, AZURE_SPEECH_REGION — local dev: create .env.local and run vercel dev</span></li>
+          <li class="done">Update <code>vercel.json</code> with SPA rewrites</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 7 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">7</span>
+        <span class="phase-title">Audio Format Conversion</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Create <code>src/utils/audioConvert.ts</code> <span class="detail">Client-side WebM → 16kHz 16-bit mono PCM WAV using Web Audio API</span></li>
+          <li class="done">Tests for WAV encoder (synthetic data, header verification)</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 8 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">8</span>
+        <span class="phase-title">Azure Neural TTS Integration</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Create <code>useAzureTts</code> hook <span class="detail">Fetches from /api/tts; automatically falls back to browser speechSynthesis (zh voice) when API is unavailable</span></li>
+          <li class="done">Update <code>App.tsx</code> to swap speech synthesis hook</li>
+          <li class="done">Add Vite dev proxy for <code>/api</code></li>
+          <li class="done">Tests with mocked fetch + Audio, fallback on non-ok response, fallback on network error</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 9 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">9</span>
+        <span class="phase-title">Pronunciation Scoring</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Create <code>usePronunciationAssessment</code> hook <span class="detail">WebM → WAV conversion, POST to /api/assess, parse AssessmentScore</span></li>
+          <li class="done">Create <code>ScoreDisplay</code> component <span class="detail">Color-coded overall score (green ≥80, yellow ≥60, red &lt;60), per-phoneme detail</span></li>
+          <li class="done">Add "Assess" button to <code>ControlButtons</code></li>
+          <li class="done">Wire scoring into practice page</li>
+          <li class="done">Tests for assessment hook and score display</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 10 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">10</span>
+        <span class="phase-title">React Router + Tone Practice Page</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Add <code>react-router-dom</code> v6</li>
+          <li class="done">Extract <code>PracticePage</code> from App.tsx</li>
+          <li class="done">Create <code>NavBar</code> component</li>
+          <li class="done">Create <code>tones.ts</code> dataset <span class="detail">15 syllables × 4 tonal variants each</span></li>
+          <li class="done">Create <code>TonePracticePage</code> <span class="detail">Syllable selector, 2×2 grid of ToneCards, shared recorder</span></li>
+          <li class="done">Create <code>ToneCard</code> <span class="detail">Buttons: Play (ref) / Rec / Mine (play user recording) / Score. Bug fixed: Mine was always greyed out due to race condition — activeCard set to null before recordingUrl arrived from MediaRecorder; fixed with lastRecordingCardRef.</span></li>
+          <li class="done">Create <code>SyllableSelector</code> component</li>
+          <li class="done">Update routing in <code>main.tsx</code> and <code>App.tsx</code></li>
+          <li class="done">Tests for all new components</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Phase 11 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">11</span>
+        <span class="phase-title">Client-Side Pitch Analysis</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Create <code>pitchAnalysis.ts</code> <span class="detail">F0 extraction via autocorrelation, expected contours, cosine similarity comparison</span></li>
+          <li class="done">Create <code>useToneScoring</code> hook <span class="detail">Returns toneScore, detected/expected contour</span></li>
+          <li class="done">Wire tone scoring into <code>TonePracticePage</code> (runs in parallel with Azure assessment)</li>
+          <li class="done">Display dual scores on <code>ToneCard</code> (Pron + Tone badges)</li>
+          <li class="done">Tests with synthetic contour data</li>
+        </ul>
+        <p style="margin-top:0.75rem; font-size:0.85rem; color:var(--text-muted); padding:0.5rem; background:var(--yellow-bg); border-radius:4px;">
+          <strong>Why?</strong> Azure Pronunciation Assessment does NOT support tone/prosody scoring for zh-CN. This client-side analysis fills that gap.
+        </p>
+      </div>
+    </div>
+
+    <!-- Phase 12 -->
+    <div class="phase done">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">12</span>
+        <span class="phase-title">Word-Based Practice</span>
+        <span class="phase-badge">Done</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="done">Add <code>category</code> field to <code>CharacterEntry</code> type</li>
+          <li class="done">Tag all entries; added 11 new words — ~108 entries total <span class="detail">谢谢, 再见, 你好, 中文, 汉字, 电话, 手机, 电脑, 公司, 银行, 超市</span></li>
+          <li class="done">Add filter toggle to PracticePage (All / Characters / Words) <span class="detail">Resets history and clears score/recording on change. useCharacterHistory accepts CharacterFilter param.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Future -->
+    <div class="phase future">
+      <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="phase-number">…</span>
+        <span class="phase-title">Future Work</span>
+        <span class="phase-badge">Ideas</span>
+        <span class="phase-toggle">▸</span>
+      </div>
+      <div class="phase-body">
+        <ul>
+          <li class="todo">Progress tracking — persist scores over time</li>
+          <li class="todo">Spaced repetition — prioritize weak characters/tones</li>
+          <li class="todo">Offline / PWA — cache TTS audio, service worker</li>
+          <li class="todo">Sentence-level practice with tone sandhi</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="arch-section">
+      <h2>Architecture</h2>
+
+      <!-- System Diagram -->
+      <div class="arch-card">
+        <h3>System Diagram</h3>
+        <div class="diagram">
+          <div class="diagram-flow">
+            <div class="diagram-row">
+              <div class="diagram-box client">
+                <strong>Browser — React SPA</strong>
+                <small>Pages, Components, Hooks</small>
+              </div>
+            </div>
+            <div class="diagram-row">
+              <div class="diagram-box client">
+                <strong>useAzureTts</strong>
+                <small>Play reference audio</small>
+              </div>
+              <div class="diagram-box client">
+                <strong>useRecorder</strong>
+                <small>MediaRecorder → WebM</small>
+              </div>
+              <div class="diagram-box client">
+                <strong>usePronAssessment</strong>
+                <small>Score pronunciation</small>
+              </div>
+              <div class="diagram-box client">
+                <strong>useToneScoring</strong>
+                <small>Pitch analysis (local)</small>
+              </div>
+            </div>
+            <div class="diagram-arrow">↕ HTTP</div>
+            <div class="diagram-row">
+              <div class="diagram-box server">
+                <strong>/api/tts</strong>
+                <small>Text → Audio proxy</small>
+              </div>
+              <div class="diagram-box server">
+                <strong>/api/assess</strong>
+                <small>WAV → Scores proxy</small>
+              </div>
+            </div>
+            <div class="diagram-arrow">↕ Azure SDK</div>
+            <div class="diagram-row">
+              <div class="diagram-box azure">
+                <strong>Neural TTS</strong>
+                <small>zh-CN-XiaoxiaoNeural</small>
+              </div>
+              <div class="diagram-box azure">
+                <strong>Pronunciation Assessment</strong>
+                <small>Phoneme-level scoring</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Routing -->
+      <div class="arch-card">
+        <h3>Pages & Routing</h3>
+        <table class="route-table">
+          <thead>
+            <tr><th>Path</th><th>Page</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>/</code></td><td>PracticePage</td><td>Word/character practice with pronunciation scoring</td></tr>
+            <tr><td><code>/tones</code></td><td>TonePracticePage</td><td>4-tone drilling per syllable with pitch analysis</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Component Tree -->
+      <div class="arch-card">
+        <h3>Component Tree</h3>
+        <div class="comp-tree">
+          <span class="component">App</span> <span class="desc">— router shell</span><br>
+          ├── <span class="component">NavBar</span> <span class="desc">— Word Practice | Tone Practice</span><br>
+          ├── <span class="component">PracticePage</span><br>
+          │&nbsp;&nbsp; ├── <span class="component">Header</span><br>
+          │&nbsp;&nbsp; ├── <span class="component">CharacterCard</span> <span class="desc">— hanzi / pinyin / gloss</span><br>
+          │&nbsp;&nbsp; ├── <span class="component">ControlButtons</span> <span class="desc">— play / record / assess</span><br>
+          │&nbsp;&nbsp; ├── <span class="component">ScoreDisplay</span> <span class="desc">— overall + per-phoneme</span><br>
+          │&nbsp;&nbsp; ├── <span class="component">NavigationButtons</span> <span class="desc">— prev / next</span><br>
+          │&nbsp;&nbsp; └── <span class="component">StatusMessage</span> <span class="desc">— errors / recording</span><br>
+          └── <span class="component">TonePracticePage</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="component">SyllableSelector</span> <span class="desc">— dropdown + random</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="component">ToneCard</span> × 4 <span class="desc">— 2×2 grid</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Tone indicator + hanzi + pinyin<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Play (ref) / Rec / Mine / Score buttons<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Pronunciation score <span class="desc">(Azure)</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── Tone score + contour <span class="desc">(pitch analysis)</span>
+        </div>
+      </div>
+
+      <!-- Scoring -->
+      <div class="arch-card">
+        <h3>Scoring Architecture</h3>
+        <p>Two complementary scoring systems work together:</p>
+        <div class="scoring-grid">
+          <div class="scoring-card" style="border-left:3px solid var(--accent);">
+            <h4>Azure Pronunciation Assessment</h4>
+            <p>Phoneme-level accuracy scoring for consonants and vowels. Requires server round-trip: record → convert WebM→WAV → POST to <code>/api/assess</code>. Available on both pages.</p>
+          </div>
+          <div class="scoring-card" style="border-left:3px solid var(--blue);">
+            <h4>Client-Side Pitch Analysis</h4>
+            <p>Tone contour scoring via F0 extraction with Web Audio API. Runs entirely in-browser (no network). Compares detected pitch contour against reference using DTW. Tone Practice page only.</p>
+          </div>
+        </div>
+        <p style="margin-top:0.75rem; font-size:0.85rem; color:var(--text-muted);">Azure does not support tone/prosody scoring for zh-CN — the client-side pitch analysis fills this gap.</p>
+      </div>
+
+      <!-- Key Types -->
+      <div class="arch-card">
+        <h3>Key Types</h3>
+        <pre><code><span class="comment">// Word/character entry</span>
+<span class="keyword">interface</span> <span class="type">CharacterEntry</span> {
+  hanzi: <span class="type">string</span>;
+  pinyin: <span class="type">string</span>;
+  gloss: <span class="type">string</span>;
+  ttsText?: <span class="type">string</span>;
+  category?: <span class="string">"character"</span> | <span class="string">"word"</span>;
+}
+
+<span class="comment">// Tone practice entry</span>
+<span class="keyword">interface</span> <span class="type">ToneSyllable</span> {
+  base: <span class="type">string</span>;          <span class="comment">// e.g. "ma"</span>
+  variants: [<span class="type">ToneVariant</span> × <span class="number">4</span>];
+}
+
+<span class="comment">// Azure pronunciation result</span>
+<span class="keyword">interface</span> <span class="type">AssessmentScore</span> {
+  pronScore: <span class="type">number</span>;     <span class="comment">// 0-100</span>
+  accuracyScore: <span class="type">number</span>;
+  fluencyScore: <span class="type">number</span>;
+  completenessScore: <span class="type">number</span>;
+  words: { word, accuracyScore, phonemes[] }[];
+}
+
+<span class="comment">// Client-side tone analysis</span>
+<span class="keyword">interface</span> <span class="type">ToneScore</span> {
+  toneScore: <span class="type">number</span>;            <span class="comment">// 0-100</span>
+  detectedContour: <span class="type">number</span>[];  <span class="comment">// F0 (normalized)</span>
+  expectedContour: <span class="type">number</span>[];  <span class="comment">// reference shape</span>
+}</code></pre>
+      </div>
+
+      <!-- File Structure -->
+      <div class="arch-card">
+        <h3>File Structure</h3>
+        <div class="file-tree">
+          <span class="dir">api/</span> <span class="note">— Vercel serverless</span><br>
+          ├── <span class="new">tts.ts</span> <span class="note">— Azure TTS proxy</span><br>
+          └── <span class="new">assess.ts</span> <span class="note">— Pronunciation Assessment proxy</span><br>
+          <span class="dir">src/</span><br>
+          ├── <span class="mod">main.tsx</span> <span class="note">— add BrowserRouter</span><br>
+          ├── <span class="mod">App.tsx</span> <span class="note">— router shell</span><br>
+          ├── <span class="mod">types.ts</span> <span class="note">— add category field</span><br>
+          ├── <span class="dir">data/</span><br>
+          │&nbsp;&nbsp; ├── <span class="mod">characters.ts</span> <span class="note">— add categories, more words</span><br>
+          │&nbsp;&nbsp; └── <span class="new">tones.ts</span> <span class="note">— tone syllable dataset</span><br>
+          ├── <span class="dir">styles/</span><br>
+          │&nbsp;&nbsp; └── <span class="mod">global.css</span> <span class="note">— navbar, tone grid, scores</span><br>
+          ├── <span class="dir">pages/</span> <span class="note">— new directory</span><br>
+          │&nbsp;&nbsp; ├── <span class="new">PracticePage.tsx</span><br>
+          │&nbsp;&nbsp; └── <span class="new">TonePracticePage.tsx</span><br>
+          ├── <span class="dir">components/</span><br>
+          │&nbsp;&nbsp; ├── CharacterCard.tsx<br>
+          │&nbsp;&nbsp; ├── <span class="mod">ControlButtons.tsx</span> <span class="note">— add Assess button</span><br>
+          │&nbsp;&nbsp; ├── NavigationButtons.tsx<br>
+          │&nbsp;&nbsp; ├── StatusMessage.tsx<br>
+          │&nbsp;&nbsp; ├── Header.tsx<br>
+          │&nbsp;&nbsp; ├── <span class="new">NavBar.tsx</span><br>
+          │&nbsp;&nbsp; ├── <span class="new">ScoreDisplay.tsx</span><br>
+          │&nbsp;&nbsp; ├── <span class="new">ToneCard.tsx</span><br>
+          │&nbsp;&nbsp; └── <span class="new">SyllableSelector.tsx</span><br>
+          ├── <span class="dir">hooks/</span><br>
+          │&nbsp;&nbsp; ├── useRecorder.ts<br>
+          │&nbsp;&nbsp; ├── useSpeechSynthesis.ts <span class="note">— legacy fallback</span><br>
+          │&nbsp;&nbsp; ├── <span class="new">useAzureTts.ts</span><br>
+          │&nbsp;&nbsp; ├── <span class="new">usePronunciationAssessment.ts</span><br>
+          │&nbsp;&nbsp; ├── <span class="new">useToneScoring.ts</span><br>
+          │&nbsp;&nbsp; ├── useCharacterHistory.ts<br>
+          │&nbsp;&nbsp; └── useAudioPlayback.ts<br>
+          └── <span class="dir">utils/</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── random.ts<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">audioConvert.ts</span> <span class="note">— WebM → WAV</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="new">pitchAnalysis.ts</span> <span class="note">— F0 extraction</span>
+        </div>
+        <p style="margin-top:0.5rem; font-size:0.8rem; color:var(--text-muted);">
+          <span style="color:var(--new,#4ec9b0);">■</span> new &nbsp;
+          <span style="color:var(--mod,#dcdcaa);">■</span> modified &nbsp;
+          <span style="color:var(--text-muted);">■</span> unchanged
+        </p>
+      </div>
+
+      <!-- Error Handling -->
+      <div class="arch-card">
+        <h3>Error & Fallback Handling</h3>
+        <ul>
+          <li><strong>Azure TTS failure / unavailable:</strong> automatically falls back to browser <code>speechSynthesis</code> with zh voice; no user action required</li>
+          <li><strong>Azure Assessment failure:</strong> inline error, score not shown</li>
+          <li><strong>Recording unsupported:</strong> inline notice; playback + navigation still work</li>
+          <li><strong>Mic denied:</strong> inline error with recovery guidance</li>
+          <li><strong>Network offline:</strong> Azure features degrade; pitch analysis still works (client-side)</li>
+          <li><strong>Autoplay:</strong> all playback initiated via user gesture</li>
+        </ul>
+      </div>
+
+      <!-- Environment -->
+      <div class="arch-card">
+        <h3>Environment Variables</h3>
+        <p>Set in Vercel dashboard (never committed):</p>
+        <ul>
+          <li><code>AZURE_SPEECH_KEY</code> — Azure Cognitive Services subscription key</li>
+          <li><code>AZURE_SPEECH_REGION</code> — e.g. <code>eastus</code></li>
+        </ul>
+        <p style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted);">Local development: use <code>vercel dev</code> or Vite proxy to forward <code>/api</code> requests.</p>
+      </div>
+
+    </div>
+
+    <!-- Verification -->
+    <div class="arch-section">
+      <h2>Verification (Phases 1–12)</h2>
+      <div class="arch-card">
+        <ul>
+          <li class="done" style="list-style:none; padding-left:1.5rem; position:relative;"><span style="position:absolute;left:0;color:var(--green);font-weight:700;">✓</span> <code>npm run lint</code> — no errors</li>
+          <li class="done" style="list-style:none; padding-left:1.5rem; position:relative;"><span style="position:absolute;left:0;color:var(--green);font-weight:700;">✓</span> <code>npm run test</code> — 55 tests pass</li>
+          <li class="done" style="list-style:none; padding-left:1.5rem; position:relative;"><span style="position:absolute;left:0;color:var(--green);font-weight:700;">✓</span> <code>npm run build</code> — clean production build</li>
+        </ul>
+      </div>
+    </div>
+
+    <footer>
+      Mandarin Pronunciation Drill — Plan & Architecture Document
+    </footer>
+
+  </div>
+</body>
+</html>
