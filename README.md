@@ -5,9 +5,9 @@ Single-page React app for quick Mandarin pronunciation drills: show a random com
 ## Getting Started
 
 1) Install Node.js 18+ (npm or pnpm available).  
-2) From `General/product/`:  
+2) From main folder   
    - `npm install`  
-   - `npm run dev` (opens http://localhost:5173)  
+   - `npm run dev`  
    - `npm run build` for a production bundle
 
 ## Key Decisions
@@ -15,13 +15,12 @@ Single-page React app for quick Mandarin pronunciation drills: show a random com
 - Pure client-side SPA; no backend required.  
 - TTS via browser `speechSynthesis`, with a Mandarin voice if available; pluggable provider interface.  
 - Recording via `MediaRecorder`; ephemeral blobs in-memory only.  
-- Character data local (~100 entries) with hanzi, pinyin, gloss.
+- Character data local with hanzi, pinyin, gloss.
 
-## Compatibility
+## Compatibility``
 
 - Requires HTTPS for mic access in production.  
-- Needs browsers with `MediaRecorder`, `AudioContext`, and `speechSynthesis` (Chrome/Edge/Safari/Firefox modern).  
-- Falls back gracefully if recording is unsupported.
+- Needs browsers with `MediaRecorder`, `AudioContext`, and `speechSynthesis`.  
 
 ## Structure
 
@@ -32,3 +31,5 @@ Single-page React app for quick Mandarin pronunciation drills: show a random com
 - `src/utils/random.ts` — random selection helper  
 - `src/index.css` — styling
 
+## Vibe Code Alert
+This project was 99% vibe coded to learn more JS.
