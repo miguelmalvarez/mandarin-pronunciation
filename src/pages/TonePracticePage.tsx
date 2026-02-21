@@ -13,6 +13,7 @@ export function TonePracticePage() {
   const [selectedSyllable, setSelectedSyllable] = useState<ToneSyllable>(toneSyllables[0]);
   const [activeCard, setActiveCard] = useState<number | null>(null);
   const [cardRecordings, setCardRecordings] = useState<Record<number, string>>({});
+  const [cardTranscripts, setCardTranscripts] = useState<Record<number, string | null>>({});
   const [cardScores, setCardScores] = useState<Record<number, AssessmentScore>>({});
   const [toneScores, setToneScores] = useState<Record<number, ToneScore>>({});
   const [playingCard, setPlayingCard] = useState<number | null>(null);
@@ -21,7 +22,14 @@ export function TonePracticePage() {
   const [error, setError] = useState<string | null>(null);
 
   const { play } = useAzureTts();
-  const { start, stop: stopRecording, isRecording, recordingUrl, clearRecording } = useRecorder();
+  const {
+    start,
+    stop: stopRecording,
+    isRecording,
+    recordingUrl,
+    transcript,
+    clearRecording,
+  } = useRecorder();
   const { playBlob } = useAudioPlayback();
   const { assess } = usePronunciationAssessment();
   const { analyze } = useToneScoring();
@@ -32,14 +40,17 @@ export function TonePracticePage() {
 
   useEffect(() => {
     if (recordingUrl && lastRecordingCardRef.current !== null) {
-      setCardRecordings((prev) => ({ ...prev, [lastRecordingCardRef.current!]: recordingUrl }));
+      const card = lastRecordingCardRef.current;
+      setCardRecordings((prev) => ({ ...prev, [card]: recordingUrl }));
+      setCardTranscripts((prev) => ({ ...prev, [card]: transcript ?? null }));
     }
-  }, [recordingUrl]);
+  }, [recordingUrl, transcript]);
 
   const handleSyllableChange = useCallback(
     (syllable: ToneSyllable) => {
       setSelectedSyllable(syllable);
       setCardRecordings({});
+      setCardTranscripts({});
       setCardScores({});
       setToneScores({});
       setActiveCard(null);
@@ -114,10 +125,11 @@ export function TonePracticePage() {
       setAssessingCard(tone);
       try {
         const variant = selectedSyllable.variants[tone - 1];
+        const cardTranscript = cardTranscripts[tone] ?? null;
 
-        // Run pronunciation assessment and tone analysis in parallel
+        // Run pronunciation assessment (sync) and tone analysis (async) in parallel
         const [pronResult, toneResult] = await Promise.all([
-          assess(recording, variant.ttsText),
+          Promise.resolve(assess(cardTranscript, variant.ttsText)),
           analyze(recording, variant.tone),
         ]);
 
@@ -133,7 +145,7 @@ export function TonePracticePage() {
         setAssessingCard(null);
       }
     },
-    [cardRecordings, selectedSyllable, assess, analyze],
+    [cardRecordings, cardTranscripts, selectedSyllable, assess, analyze],
   );
 
   return (

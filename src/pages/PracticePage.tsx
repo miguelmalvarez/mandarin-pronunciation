@@ -20,6 +20,7 @@ export function PracticePage() {
     stop: stopRecording,
     isRecording,
     recordingUrl,
+    transcript,
     error: recordError,
     supported: recorderSupported,
     clearRecording,
@@ -115,10 +116,10 @@ export function PracticePage() {
     }
   };
 
-  const handleAssess = async () => {
+  const handleAssess = () => {
     if (!recordingUrl) return;
     setError(null);
-    await assess(recordingUrl, current.ttsText ?? current.hanzi);
+    assess(transcript, current.ttsText ?? current.hanzi);
   };
 
   const handleNext = () => {
@@ -177,7 +178,7 @@ export function PracticePage() {
           onNext={handleNext}
         />
       </div>
-      {score && <ScoreDisplay score={score} />}
+      {score && <ScoreDisplay score={score} approximate />}
       <StatusMessage
         isRecording={isRecording}
         recorderSupported={recorderSupported}

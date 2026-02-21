@@ -162,6 +162,12 @@ body {
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
 }
 
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: none;
+  opacity: 0.8;
+}
+
 .status {
   background: #e0f2fe;
   border: 1px solid #bae6fd;

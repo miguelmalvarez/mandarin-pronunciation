@@ -191,6 +191,29 @@ Note: Azure Pronunciation Assessment does NOT support prosody/tone scoring for z
 
 ---
 
+## Phase 13: Client-Side Pronunciation Assessment Fallback — DONE
+
+While Azure Speech Service is blocked, a client-side fallback unblocks development:
+
+- [x] **`useRecorder.ts`** — start `SpeechRecognition` (lang `zh-CN`) in parallel with `MediaRecorder`; store `transcript: string | null` in recorder state (Chrome/Edge only; gracefully no-ops elsewhere)
+- [x] **`src/utils/scoreTranscript.ts`** — pure `scoreTranscript(transcript, expectedText)` function: tokenizes CJK/ASCII, computes word-overlap → 0–100 `pronScore`; 14 unit tests
+- [x] **`usePronunciationAssessment.ts`** — swapped Azure fetch for synchronous `scoreTranscript`; same `AssessmentScore` interface, same public API; `api/assess.ts` untouched for easy restoration
+- [x] **`PracticePage.tsx` + `TonePracticePage.tsx`** — wired `transcript` from recorder into assessment
+- [x] **`ScoreDisplay.tsx`** — `approximate` prop: hides accuracy/fluency/completeness breakdown (misleading with browser assessment) and shows only overall score + matched/unmatched word list
+- [x] **CSS** — added `.btn:active` press feedback (translateY down + opacity) so all buttons give clear click confirmation
+
+### Restoration path (when Azure unblocks)
+Only `usePronunciationAssessment.ts` internals change: swap `scoreTranscript()` back for `fetch('/api/assess', ...)` and remove the `approximate` prop from call sites. The `AssessmentScore` interface, `ScoreDisplay.tsx` breakdown logic, and all other files remain identical.
+
+### Planned: detailed scoring breakdown (when Azure API is restored)
+Once `api/assess.ts` is active, restore full `ScoreDisplay` breakdown:
+- **Accuracy** — per-phoneme correctness from Azure
+- **Fluency** — rhythm, pausing, speaking rate
+- **Completeness** — fraction of expected words produced
+- **Per-word + per-phoneme** detail with error type labels
+
+---
+
 ## Future Work
 
 - **Progress tracking** — persist scores over time (localStorage or backend), track mastery per character/tone
